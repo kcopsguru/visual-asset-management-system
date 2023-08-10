@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from "react";
 import { API } from "aws-amplify";
-import { Button, Header, Table, Input } from "@cloudscape-design/components";
+import { Button, Header, Table, Input, Box, SpaceBetween } from "@cloudscape-design/components";
 
 export class MetadataApi {
     version!: string;
@@ -22,29 +22,54 @@ class TableRow {
     type: string | null | undefined;
 }
 
-export const put = async (databaseId: string, assetId: string, record: Metadata) => {
+export const put = async (
+    databaseId: string,
+    assetId: string,
+    record: Metadata,
+    prefix?: string
+) => {
     if (Object.keys(record).length < 1) {
         return;
     }
-    return API.put("api", `metadata/${databaseId}/${assetId}`, {
-        body: {
-            version: "1",
-            metadata: record,
-        },
-    });
+    if (prefix) {
+        return API.put("api", `metadata/${databaseId}/${assetId}?prefix=${prefix}`, {
+            body: {
+                version: "1",
+                metadata: record,
+            },
+        });
+    } else {
+        return API.put("api", `metadata/${databaseId}/${assetId}`, {
+            body: {
+                version: "1",
+                metadata: record,
+            },
+        });
+    }
 };
-const get = async (databaseId: string, assetId: string): Promise<object> => {
-    return API.get("api", `metadata/${databaseId}/${assetId}`, {});
+
+const get = async (databaseId: string, assetId: string, prefix?: string): Promise<object> => {
+    if (prefix) {
+        return API.get("api", `metadata/${databaseId}/${assetId}?prefix=${prefix}`, {});
+    } else {
+        return API.get("api", `metadata/${databaseId}/${assetId}`, {});
+    }
 };
 
 class MetadataInputs {
     assetId!: string;
     databaseId!: string;
     initialState?: Metadata;
-    store?: (databaseId: string, assetId: string, record: Metadata) => Promise<any>;
+    prefix?: string;
+    store?: (
+        databaseId: string,
+        assetId: string,
+        record: Metadata,
+        prefix?: string
+    ) => Promise<any>;
 }
 
-const MetadataTable = ({ assetId, databaseId, store, initialState }: MetadataInputs) => {
+const MetadataTable = ({ assetId, databaseId, store, prefix, initialState }: MetadataInputs) => {
     const _store = store !== undefined ? store : put;
     const tableRowToMeta = (rows: TableRow[]): Metadata => {
         const result: Metadata = {};
@@ -82,7 +107,7 @@ const MetadataTable = ({ assetId, databaseId, store, initialState }: MetadataInp
             return;
         }
 
-        get(databaseId, assetId)
+        get(databaseId, assetId, prefix)
             .catch((x) => {
                 // if 404 , then set an initial status to empty
                 if (x.response.status === 404) {
@@ -98,6 +123,32 @@ const MetadataTable = ({ assetId, databaseId, store, initialState }: MetadataInp
             });
     }, [loading, items, initialState, databaseId, assetId]);
 
+    const addItems = () => {
+        const next = [...items];
+        next.unshift({
+            idx: -1,
+            name: null,
+            description: null,
+            type: "string",
+        });
+        for (let i = 0; i < next.length; i++) {
+            next[i].idx = i;
+        }
+        setItems(next);
+    };
+
+    const AddButton = () => {
+        return (
+            <Button
+                onClick={addItems}
+                disabled={items.filter((x) => x.name === null || x.description === null).length > 0}
+                variant="primary"
+            >
+                Add Field
+            </Button>
+        );
+    };
+
     const HeaderControls = () => {
         return (
             <div
@@ -107,27 +158,7 @@ const MetadataTable = ({ assetId, databaseId, store, initialState }: MetadataInp
                     position: "absolute",
                 }}
             >
-                <Button
-                    onClick={() => {
-                        const next = [...items];
-                        next.unshift({
-                            idx: -1,
-                            name: null,
-                            description: null,
-                            type: "string",
-                        });
-                        for (let i = 0; i < next.length; i++) {
-                            next[i].idx = i;
-                        }
-                        setItems(next);
-                    }}
-                    disabled={
-                        items.filter((x) => x.name === null || x.description === null).length > 0
-                    }
-                    variant="primary"
-                >
-                    Add Row
-                </Button>
+                <AddButton />
             </div>
         );
     };
@@ -137,6 +168,11 @@ const MetadataTable = ({ assetId, databaseId, store, initialState }: MetadataInp
         return (item: TableRow, value: "name" | "description" | null | undefined) => {
             if (value === undefined || value === null) {
                 return;
+            }
+            if (reqs.indexOf("no-underscore-prefix") > -1) {
+                if (value.indexOf("_") === 0) {
+                    return "Field name must not start with underscore";
+                }
             }
             if (reqs.indexOf("non-empty") > -1) {
                 if (value.length < 1) {
@@ -164,7 +200,14 @@ const MetadataTable = ({ assetId, databaseId, store, initialState }: MetadataInp
                 header={
                     <>
                         <HeaderControls />
-                        <Header counter={items.length + ""}>Metadata</Header>
+                        <Header
+                            counter={
+                                items.length +
+                                (items.length > 1 || items.length === 0 ? " fields" : " field")
+                            }
+                        >
+                            Metadata
+                        </Header>
                     </>
                 }
                 loading={loading}
@@ -182,9 +225,17 @@ const MetadataTable = ({ assetId, databaseId, store, initialState }: MetadataInp
                     }
                     setItems(next);
 
-                    await _store(databaseId, assetId, tableRowToMeta(next));
+                    await _store(databaseId, assetId, tableRowToMeta(next), prefix);
                 }}
                 items={items}
+                empty={
+                    <Box margin={{ vertical: "xs" }} textAlign="center" color="inherit">
+                        <SpaceBetween size="m">
+                            <b>No fields</b>
+                            <AddButton />
+                        </SpaceBetween>
+                    </Box>
+                }
                 columnDefinitions={[
                     {
                         id: "name",
@@ -196,7 +247,11 @@ const MetadataTable = ({ assetId, databaseId, store, initialState }: MetadataInp
                             ariaLabel: "Name",
                             editIconAriaLabel: "editable",
                             errorIconAriaLabel: "Name Error",
-                            validation: validationFunction("name", ["non-empty", "unique"]),
+                            validation: validationFunction("name", [
+                                "non-empty",
+                                "unique",
+                                "no-underscore-prefix",
+                            ]),
                             editingCell: (item, { currentValue, setValue }) => {
                                 return (
                                     <Input
