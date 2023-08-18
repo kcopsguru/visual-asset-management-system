@@ -42,6 +42,7 @@ client = boto3.client('lambda')
 sf_client = boto3.client('stepfunctions')
 try:
     workflow_Database = os.environ["WORKFLOW_STORAGE_TABLE_NAME"]
+    stack_name = os.environ["VAMS_STACK_NAME"]
     upload_all_function = os.environ['UPLOAD_ALL_LAMBDA_FUNCTION_NAME']
 except:
     print("Failed Loading Environment Variables")
@@ -328,8 +329,17 @@ def create_lambda_step(pipeline, input_s3_uri, output_s3_uri):
 
     lambda_payload = {
         "body": {
+            "executionId.$": "$$.Execution.Name",
             "inputPath.$": input_s3_uri,
             "outputPath.$": output_s3_uri,
+            "databaseId.$": "$.databaseId",
+            "assetId.$": "$.assetId",
+            "name.$": "$.assetName",
+            "description.$": "$.assetDescription",
+            "downloadUrl.$": "$.downloadUrl",
+            "viewerUrl.$": "$.viewerUrl",
+            "instanceId": stack_name,
+            "metadata.$": "$.metadata",
             "TaskToken.$": "$$.Task.Token",
         }
     }

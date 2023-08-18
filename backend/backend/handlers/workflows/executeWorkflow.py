@@ -5,8 +5,6 @@ import json
 import boto3
 from boto3.dynamodb.conditions import Key
 import os
-import uuid
-import time
 from backend.common.validators import validate
 
 try:
@@ -20,7 +18,8 @@ except Exception as e:
 
 try:
     asset_Database = os.environ["ASSET_STORAGE_TABLE_NAME"]
-    pipeline_Database=os.environ["PIPELINE_STORAGE_TABLE_NAME"]
+    metadata_Database = os.environ["METADATA_STORAGE_TABLE_NAME"]
+    pipeline_Database = os.environ["PIPELINE_STORAGE_TABLE_NAME"]
     workflow_database = os.environ["WORKFLOW_STORAGE_TABLE_NAME"]
     workflow_execution_database = os.environ["WORKFLOW_EXECUTION_STORAGE_TABLE_NAME"]
 except:
@@ -35,12 +34,27 @@ def get_pipelines(databaseId, pipelineId):
     )
     return response['Items']
 
-def launchWorkflow(bucketName, key, workflow_arn, asset_id, workflow_id, database_id):
+def launchWorkflow(asset, bucketName, key, workflow_arn, workflow_id, database_id):
     print("Launching workflow with arn: ", workflow_arn)
+    asset_id = asset['assetId']
+    metadata = get_metadata(database_id, asset_id)[0]
+    print("Metadata from database: ", metadata)
+    del metadata['assetId']
+    del metadata['databaseId']
     response = sfn_client.start_execution(
         stateMachineArn=workflow_arn,
-        input=json.dumps({ 'bucket': bucketName, 'key': key, 'databaseId': database_id,
-         'assetId': asset_id, 'workflowId': workflow_id })
+        input=json.dumps({
+            'bucket': bucketName,
+            'key': key,
+            'databaseId': database_id,
+            'assetId': asset_id,
+            'assetName': asset['assetName'],
+            'assetDescription': asset['description'],
+            'downloadUrl': '',
+            'viewerUrl': '',
+            'workflowId': workflow_id,
+            'metadata': metadata
+        })
     )
     print("Response: ", response)
     executionId = response['executionArn'].split(":")[-1];
@@ -62,6 +76,13 @@ def launchWorkflow(bucketName, key, workflow_arn, asset_id, workflow_id, databas
 
 def get_asset(databaseId, assetId):
     table = dynamodb.Table(asset_Database)
+    response = table.query(
+        KeyConditionExpression=Key('databaseId').eq(databaseId) & Key('assetId').eq(assetId)
+    )
+    return response['Items']
+
+def get_metadata(databaseId, assetId):
+    table = dynamodb.Table(metadata_Database)
     response = table.query(
         KeyConditionExpression=Key('databaseId').eq(databaseId) & Key('assetId').eq(assetId)
     )
@@ -147,7 +168,7 @@ def lambda_handler(event, context):
             response['statusCode'] = 400
             return response
 
-        executionId = launchWorkflow(data['bucketName'], data['key'], data['workflow_arn'], data['assetId'], data['workflowId'], pathParams['databaseId'])
+        executionId = launchWorkflow(asset, data['bucketName'], data['key'], data['workflow_arn'], data['workflowId'], pathParams['databaseId'])
         response["statusCode"] = 200
         response['body'] = json.dumps({'message': executionId})
         return response
