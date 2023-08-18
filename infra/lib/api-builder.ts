@@ -210,7 +210,8 @@ export function apiBuilder(
     const assetDownloadFunction = buildDownloadAssetFunction(
         scope,
         storageResources.s3.assetBucket,
-        storageResources.dynamo.assetStorageTable
+        storageResources.dynamo.assetStorageTable,
+        props.stackName
     );
     attachFunctionToApi(scope, assetDownloadFunction, {
         routePath: "/database/{databaseId}/assets/{assetId}/download",
