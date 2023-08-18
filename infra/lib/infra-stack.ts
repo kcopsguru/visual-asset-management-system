@@ -26,7 +26,7 @@ import { samlEnabled, samlSettings } from "./saml-config";
 import { LocationServiceConstruct } from "./constructs/location-service-construct";
 import { streamsBuilder } from "./streams-builder";
 
-interface EnvProps {
+export interface EnvProps {
     prod: boolean; //ToDo: replace with env
     env: cdk.Environment;
     stackName: string;
@@ -151,7 +151,7 @@ export class VAMS extends cdk.Stack {
             customCognitoWebClientConfig.node.addDependency(website);
         }
 
-        apiBuilder(this, api, storageResources);
+        apiBuilder(this, api, storageResources, props);
 
         streamsBuilder(this, cognitoResources, api, storageResources);
 

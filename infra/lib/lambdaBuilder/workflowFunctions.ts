@@ -88,7 +88,8 @@ export function buildCreateWorkflowFunction(
     scope: Construct,
     workflowStorageTable: dynamodb.Table,
     assetStorageBucket: s3.Bucket,
-    uploadAllAssetFunction: lambda.Function
+    uploadAllAssetFunction: lambda.Function,
+    stackName: string
 ): lambda.Function {
     const role = buildWorkflowRole(scope, assetStorageBucket, uploadAllAssetFunction);
     const name = "createWorkflow";
@@ -100,6 +101,7 @@ export function buildCreateWorkflowFunction(
         memorySize: 3008,
         environment: {
             WORKFLOW_STORAGE_TABLE_NAME: workflowStorageTable.tableName,
+            VAMS_STACK_NAME: stackName,
             UPLOAD_ALL_LAMBDA_FUNCTION_NAME: uploadAllAssetFunction.functionName,
             LAMBDA_ROLE_ARN: role.roleArn,
         },
@@ -130,6 +132,7 @@ export function buildCreateWorkflowFunction(
 export function buildRunWorkflowFunction(
     scope: Construct,
     workflowStorageTable: dynamodb.Table,
+    metadataStorageTable: dynamodb.Table,
     pipelineStorageTable: dynamodb.Table,
     assetStorageTable: dynamodb.Table,
     workflowExecutionStorageTable: dynamodb.Table,
@@ -144,6 +147,7 @@ export function buildRunWorkflowFunction(
         memorySize: 3008,
         environment: {
             WORKFLOW_STORAGE_TABLE_NAME: workflowStorageTable.tableName,
+            METADATA_STORAGE_TABLE_NAME: metadataStorageTable.tableName,
             PIPELINE_STORAGE_TABLE_NAME: pipelineStorageTable.tableName,
             ASSET_STORAGE_TABLE_NAME: assetStorageTable.tableName,
             WORKFLOW_EXECUTION_STORAGE_TABLE_NAME: workflowExecutionStorageTable.tableName,
@@ -152,6 +156,7 @@ export function buildRunWorkflowFunction(
     workflowStorageTable.grantReadData(runWorkflowFunction);
     pipelineStorageTable.grantReadData(runWorkflowFunction);
     assetStorageTable.grantReadData(runWorkflowFunction);
+    metadataStorageTable.grantReadData(runWorkflowFunction);
     workflowExecutionStorageTable.grantReadWriteData(runWorkflowFunction);
     assetStorageBucket.grantReadWrite(runWorkflowFunction);
     suppressCdkNagErrorsByGrantReadWrite(runWorkflowFunction);
