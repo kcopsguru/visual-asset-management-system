@@ -13,6 +13,7 @@ import { Construct } from "constructs";
 import { Duration } from "aws-cdk-lib";
 import { suppressCdkNagErrorsByGrantReadWrite } from "../security";
 import * as sfn from "aws-cdk-lib/aws-stepfunctions";
+import {EnvProps} from "../infra-stack";
 export function buildAssetService(
     scope: Construct,
     assetStorageTable: dynamodb.Table,
@@ -172,7 +173,7 @@ export function buildDownloadAssetFunction(
     scope: Construct,
     assetStorageBucket: s3.Bucket,
     assetStorageTable: dynamodb.Table,
-    stackName: string
+    props: EnvProps
 ) {
     const name = "downloadAsset";
     const downloadAssetFunction = new lambda.DockerImageFunction(scope, name, {
@@ -189,13 +190,17 @@ export function buildDownloadAssetFunction(
     assetStorageTable.grantReadData(downloadAssetFunction);
     suppressCdkNagErrorsByGrantReadWrite(scope);
 
-    const ssmParam = new ssm.StringParameter(scope, `/veerum/${stackName}/downloadAssetServiceRole/arn`, {
-        stringValue: downloadAssetFunction.role?.roleArn || 'undefined',
-        simpleName: false,
-        parameterName: `/veerum/${stackName}/downloadAssetServiceRole/arn`
-    });
+    const ssmParam = new ssm.StringParameter(
+        scope,
+        `/${props.customerName}/${props.stackName}/downloadAssetServiceRole/arn`,
+        {
+            stringValue: downloadAssetFunction.role?.roleArn || "undefined",
+            simpleName: false,
+            parameterName: `/${props.customerName}/${props.stackName}/downloadAssetServiceRole/arn`,
+        }
+    );
 
-    cdk.Tags.of(ssmParam).add("vams:customization", "veerum");
+    cdk.Tags.of(ssmParam).add("vams:customization", props.customerName);
 
     return downloadAssetFunction;
 }

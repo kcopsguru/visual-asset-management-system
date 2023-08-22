@@ -211,7 +211,7 @@ export function apiBuilder(
         scope,
         storageResources.s3.assetBucket,
         storageResources.dynamo.assetStorageTable,
-        props.stackName
+        props
     );
     attachFunctionToApi(scope, assetDownloadFunction, {
         routePath: "/database/{databaseId}/assets/{assetId}/download",
