@@ -16,11 +16,13 @@ const app = new cdk.App();
 
 /** development variables **/
 const region = process.env.AWS_REGION || app.node.tryGetContext("region") || "us-east-1";
+const customerName = process.env.CUSTOMER_NAME || app.node.tryGetContext("customer-name") || "veerum";
 const stackName = (process.env.STACK_NAME || app.node.tryGetContext("stack-name")) + "-" + region;
 const dockerDefaultPlatform = process.env.DOCKER_DEFAULT_PLATFORM;
 const enableCdkNag = true;
 const stagingBucket = process.env.STAGING_BUCKET || app.node.tryGetContext("staging-bucket");
 
+console.log("CUSTOMER_NAME 👉", customerName);
 console.log("CDK_NAG_ENABLED 👉", enableCdkNag);
 console.log("STACK_NAME 👉", stackName);
 console.log("REGION 👉", region);
@@ -45,6 +47,7 @@ const cfWafStack = new CfWafStack(app, `vams-waf-${stackName || process.env.DEMO
 const vamsStack = new VAMS(app, `vams-${stackName || process.env.DEMO_LABEL || "dev"}`, {
     prod: false,
     stackName: `vams-${stackName || process.env.DEPLOYMENT_ENV || "dev"}`,
+    customerName,
     env: {
         account: process.env.CDK_DEFAULT_ACCOUNT,
         region: region,

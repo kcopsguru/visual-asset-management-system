@@ -4,6 +4,8 @@
  */
 
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as ssm from "aws-cdk-lib/aws-ssm";
+import * as cdk from "aws-cdk-lib";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as path from "path";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
@@ -11,6 +13,7 @@ import { Construct } from "constructs";
 import { Duration } from "aws-cdk-lib";
 import { suppressCdkNagErrorsByGrantReadWrite } from "../security";
 import * as sfn from "aws-cdk-lib/aws-stepfunctions";
+import {EnvProps} from "../infra-stack";
 export function buildAssetService(
     scope: Construct,
     assetStorageTable: dynamodb.Table,
@@ -169,7 +172,8 @@ export function buildAssetColumnsFunction(
 export function buildDownloadAssetFunction(
     scope: Construct,
     assetStorageBucket: s3.Bucket,
-    assetStorageTable: dynamodb.Table
+    assetStorageTable: dynamodb.Table,
+    props: EnvProps
 ) {
     const name = "downloadAsset";
     const downloadAssetFunction = new lambda.DockerImageFunction(scope, name, {
@@ -185,6 +189,18 @@ export function buildDownloadAssetFunction(
     assetStorageBucket.grantRead(downloadAssetFunction);
     assetStorageTable.grantReadData(downloadAssetFunction);
     suppressCdkNagErrorsByGrantReadWrite(scope);
+
+    const ssmParam = new ssm.StringParameter(
+        scope,
+        `/${props.customerName}/${props.stackName}/downloadAssetServiceRole/arn`,
+        {
+            stringValue: downloadAssetFunction.role?.roleArn || "undefined",
+            simpleName: false,
+            parameterName: `/${props.customerName}/${props.stackName}/downloadAssetServiceRole/arn`,
+        }
+    );
+
+    cdk.Tags.of(ssmParam).add("vams:customization", props.customerName);
 
     return downloadAssetFunction;
 }

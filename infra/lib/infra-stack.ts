@@ -30,6 +30,7 @@ export interface EnvProps {
     prod: boolean; //ToDo: replace with env
     env: cdk.Environment;
     stackName: string;
+    customerName: string;
     ssmWafArnParameterName: string;
     ssmWafArnParameterRegion: string;
     ssmWafArn: string;
